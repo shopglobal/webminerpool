@@ -24,6 +24,10 @@ Issue Date: 20/12/2007
 extern "C"
 {
 #endif
+  
+  
+#define __GNUC__
+
 
 #define TABLE_ALIGN     32
 #define WPOLY           0x011b
