@@ -35,7 +35,7 @@ char* hash_cn(char* hex, char* nonce,int lite, int variant)
 
     pos = nonce;
 
-    for(size_t i = 39; i < 43; i++)  { sscanf(pos, "%2hhx", &inp[i]); pos += 2; }
+    //for(size_t i = 39; i < 43; i++)  { sscanf(pos, "%2hhx", &inp[i]); pos += 2; }
 
     unsigned char hash[32];
 

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<button onclick="myFunction()">Click me</button>
+
+<p id="demo"></p>
+
+<script src="cn.js"></script>
+
+<script>
+
+var cn = Module.cwrap('hash_cn', 'string', ['string','string','number','number']);
+
+function myFunction() {
+    var blob = "5468697320697320612074657374205468697320697320612074657374205468697320697320612074657374";
+    var hash;
+ var t0 = performance.now();
+    for(i=0;i<10;i++) {
+    hash = cn(blob,"00000000",0,2);
+    
+}
+var t1 = performance.now();
+alert("10 cryptonight hashes took " + (t1 - t0) + " milliseconds.")
+alert(hash); 
+}
+</script>
+
+</body>
+</html>
