@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#include "slow-hash.h"
+#include "cryptonight.h"
 
 char *hash_cn(char *hex, int lite, int variant)
 {
@@ -26,7 +26,7 @@ char *hash_cn(char *hex, int lite, int variant)
 
     unsigned char hash[32];
 
-    cn_slow_hash(&val, len, &hash, lite, variant, 0);
+    cryptonight(&hash, &val, len, lite, variant);
 
     char *ptr = &output[0];
 
