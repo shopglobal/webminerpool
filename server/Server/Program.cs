@@ -229,6 +229,33 @@ namespace Server {
             }
         }
 
+        private static bool IsCompatible(string blob, int variant, int clientVersion)
+        {
+            // clientVersion < 5 is not allowed to connect anymore.
+            // clientVersion 5 does support variant 0 and 1
+            // clientVersion 6 does support 0,1 and >1
+            // blobVersion7 = cn1, blobVersionX = cn2 if X > 7
+
+            if (clientVersion > 5) return true;
+            else
+            {
+                if (variant == -1)
+                {
+                    bool iscn2 = false;
+                    try { iscn2 = (HexToUInt32(blob.Substring(0, 2) + "000000") > 7); } catch { }
+                    if (iscn2) return false;
+                }
+                else if (variant == 2) 
+                {
+                    return false;
+                }
+
+                return true;
+            }
+
+
+        }
+
         private static void PoolReceiveCallback (Client client, JsonData msg, CcHashset<string> hashset) {
             string jobId = Guid.NewGuid ().ToString ("N");
 
@@ -260,18 +287,12 @@ namespace Server {
                 devJob.Target = ji.Target;
                 devJob.Variant = ji.Variant;
 
-                // the following two lines make sure that we are compatible with
-                // old clients
-                bool iscn2 = false;
-                try { iscn2 = (HexToUInt32 (ji.Blob.Substring (0, 2) + "000000") > 7); } catch { }
-
                 List<Client> slavelist = new List<Client> (slaves.Values);
 
                 foreach (Client slave in slavelist) {
 
-                    // the following lines make sure that we are compatible with old clients
-
-                    if(iscn2 && (slave.Version < 6)) continue;
+                    bool compatible = IsCompatible(devJob.Blob, devJob.Variant, slave.Version);
+                    if (!compatible) continue;
 
                     string newtarget;
                     string forward;
@@ -310,17 +331,7 @@ namespace Server {
 
                     if (((DateTime.Now - devJob.Age).TotalSeconds < TimeDevJobsAreOld)) {
 
-                        // the following three lines make sure that we are compatible
-                        // with client version < 5. Can be removed in the future.
-                        //bool isv7 = false;
-                        //try { isv7 = (HexToUInt32 (devJob.Blob.Substring (0, 2) + "000000") > 6); } catch { }
-                        //bool compatible = (client.Version > 4) || (isv7);
-
-                        // the following two lines make sure that we are compatible with
-                        // old clients
-                        bool iscn2 = false;
-                        try { iscn2 = (HexToUInt32 (ji.Blob.Substring (0, 2) + "000000") > 7); } catch { }
-                        bool compatible = (client.Version > 5) || (iscn2);
+                        bool compatible = IsCompatible(devJob.Blob, devJob.Variant, client.Version);
 
                         if (compatible) {
                             // okay, do not send devjob.Target, but
@@ -352,6 +363,10 @@ namespace Server {
                 }
 
                 if (!tookdev) {
+
+                    bool compatible = IsCompatible(ji.Blob, ji.Variant, client.Version);
+                    if (!compatible) return;
+
 
                     forward = "{\"identifier\":\"" + "job" +
                         "\",\"job_id\":\"" + jobId +
