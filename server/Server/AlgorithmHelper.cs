@@ -44,7 +44,7 @@ namespace Server {
             { "cn/2", new Tuple<string, int>("cn", 2) },
             { "cn-lite/0", new Tuple<string, int>("cn-lite", 0) },
             { "cn-lite/1", new Tuple<string, int>("cn-lite", 1) },
-            { "cn-lite/1", new Tuple<string, int>("cn-lite", 2) }
+            { "cn-lite/2", new Tuple<string, int>("cn-lite", 2) }
         };
               
 		public static bool NormalizeAlgorithmAndVariant (JsonData job) {
