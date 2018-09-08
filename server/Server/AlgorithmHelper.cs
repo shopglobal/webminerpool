@@ -35,12 +35,16 @@ namespace Server {
         {
             { "cryptonight/0", new Tuple<string, int>("cn", 0) },
             { "cryptonight/1", new Tuple<string, int>("cn", 1) },
+            { "cryptonight/2", new Tuple<string, int>("cn", 2) },
             { "cryptonight-lite/0", new Tuple<string, int>("cn-lite", 0) },
             { "cryptonight-lite/1", new Tuple<string, int>("cn-lite", 1) },
+            { "cryptonight-lite/2", new Tuple<string, int>("cn-lite", 2) },
 			{ "cn/0", new Tuple<string, int>("cn", 0) },
             { "cn/1", new Tuple<string, int>("cn", 1) },
+            { "cn/2", new Tuple<string, int>("cn", 2) },
             { "cn-lite/0", new Tuple<string, int>("cn-lite", 0) },
-            { "cn-lite/1", new Tuple<string, int>("cn-lite", 1) }
+            { "cn-lite/1", new Tuple<string, int>("cn-lite", 1) },
+            { "cn-lite/1", new Tuple<string, int>("cn-lite", 2) }
         };
               
 		public static bool NormalizeAlgorithmAndVariant (JsonData job) {

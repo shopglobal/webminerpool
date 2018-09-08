@@ -19,7 +19,7 @@
 #define U64(x) ((uint64_t *) (x))
 
 #define VARIANT1_1(p) \
-  do if (variant == 1) \
+  do \
   { \
     const uint8_t tmp = ((const uint8_t*)(p))[11]; \
     static const uint32_t table = 0x75310; \
@@ -28,7 +28,7 @@
   } while(0)
 
 #define VARIANT1_2(p) \
-  do if (variant == 1) \
+  do \
   { \
     xor64(p, tweak1_2); \
   } while(0)
@@ -49,7 +49,7 @@
   } while (0)
 
 #define VARIANT2_PORTABLE_SHUFFLE_ADD1(base_ptr, offset) \
-  do if (variant >= 2) \
+  do \
   { \
     uint64_t* chunk1 = U64((base_ptr) + ((offset) ^ 0x10)); \
     uint64_t* chunk2 = U64((base_ptr) + ((offset) ^ 0x20)); \
@@ -70,7 +70,7 @@
 
   
 #define VARIANT2_PORTABLE_SHUFFLE_ADD2(base_ptr, offset) \
-  do if (variant >= 2) \
+  do \
   { \
     uint64_t* chunk1 = U64((base_ptr) + ((offset) ^ 0x10)); \
     uint64_t* chunk2 = U64((base_ptr) + ((offset) ^ 0x20)); \
@@ -103,7 +103,7 @@
 #if defined DBL_MANT_DIG && (DBL_MANT_DIG >= 50)
   // double precision floating point type has enough bits of precision on current platform
   #define VARIANT2_PORTABLE_INTEGER_MATH(b, ptr) \
-    do if (variant >= 2) \
+  do \
     { \
       VARIANT2_INTEGER_MATH_DIVISION_STEP(b, ptr); \
       VARIANT2_INTEGER_MATH_SQRT_STEP_FP64(); \
@@ -113,16 +113,16 @@
   // double precision floating point type is not good enough on current platform
   // fall back to the reference code (integer only)
   #define VARIANT2_PORTABLE_INTEGER_MATH(b, ptr) \
-    do if (variant >= 2) \
+  do \
     { \
       VARIANT2_INTEGER_MATH_DIVISION_STEP(b, ptr); \
       VARIANT2_INTEGER_MATH_SQRT_STEP_REF(); \
     } while (0)
 #endif
 
-static void xor64(uint64_t *a, const uint64_t b)
+static void xor64(uint8_t *a, const uint64_t b)
 {
-    *a ^= b;
+    *(uint64_t *)a ^= b;
 }
 
 static void copy_block(uint8_t* dst, const uint8_t* src) {
@@ -417,7 +417,6 @@ void cryptonight_hash_ctx(void *output, const void *input, size_t len, struct cr
     
     oaes_key_import_data(ctx->aes_ctx, ctx->state.hs.b, AES_KEY_SIZE);
     
-
     for (i = 0; likely(i < MEMORY); i += INIT_SIZE_BYTE)
     {
         for (j = 0; j < 10; j++)
@@ -442,40 +441,78 @@ void cryptonight_hash_ctx(void *output, const void *input, size_t len, struct cr
         ((uint64_t *)(ctx->b))[i] = ((uint64_t *)ctx->state.k)[i + 2] ^ ((uint64_t *)ctx->state.k)[i + 6];
     }
 
-
-    for (i = 0; likely(i < ITER / 4); ++i)
+    if (variant == 0) 
     {
-
-      // Iteration 1   
-      j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
-      VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
-      SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
-      xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
-      VARIANT1_1(&ctx->long_state[j]);
-      
-      // Iteration 2      
-      j = ((uint32_t *)ctx->c)[0] & 0x1FFFF0;
-      VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
-      VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->c);  
-      if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
-      mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
-      VARIANT1_2(&ctx->long_state[j] + 8);
-      
-      // Iteration 3      
-      j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
-      VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
-      SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
-      xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
-      VARIANT1_1(&ctx->long_state[j]);
-      
-      // Iteration 4
-      j = ((uint32_t *)ctx->b)[0] & 0x1FFFF0;
-      VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
-      VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->b);
-      if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
-      mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
-      VARIANT1_2(&ctx->long_state[j] + 8);
-	
+        for (i = 0; likely(i < ITER / 4); ++i)
+        { 
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+              
+            j = ((uint32_t *)ctx->c)[0] & 0x1FFFF0; 
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x1FFFF0;
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+        }
+    }
+    else if(variant == 1)
+    {
+        for (i = 0; likely(i < ITER / 4); ++i)
+        { 
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+            VARIANT1_1(&ctx->long_state[j]);
+              
+            j = ((uint32_t *)ctx->c)[0] & 0x1FFFF0; 
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            VARIANT1_2(&ctx->long_state[j] + 8);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            VARIANT1_1(&ctx->long_state[j]);
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x1FFFF0;
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+            VARIANT1_2(&ctx->long_state[j] + 8);
+        }
+    }
+    else
+    {
+        for (i = 0; likely(i < ITER / 4); ++i)
+        {
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+               
+            j = ((uint32_t *)ctx->c)[0] & 0x1FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
+            VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->c);  
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x1FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x1FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
+            VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->b);
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+        }
     }
 
     memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
@@ -520,7 +557,153 @@ void cryptonight_hash_ctx(void *output, const void *input, size_t len, struct cr
 
 void cryptonight_hash_ctx_lite(void *output, const void *input, size_t len, struct cryptonight_ctx_lite *ctx, int variant)
 {
+    ctx->aes_ctx = (oaes_ctx *)oaes_alloc();
+    size_t i, j;
 
+    keccak((const uint8_t *)input, len, ctx->state.hs.b, 200);
+    memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
+    
+    VARIANT1_INIT64();
+    VARIANT2_INIT64();
+    
+    oaes_key_import_data(ctx->aes_ctx, ctx->state.hs.b, AES_KEY_SIZE);
+    
+    for (i = 0; likely(i < MEMORY/2); i += INIT_SIZE_BYTE)
+    {
+        for (j = 0; j < 10; j++)
+        {
+            uint32_t *ptr = (uint32_t *)&ctx->aes_ctx->key->exp_data[j << 4];
+
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x10], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x20], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x30], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x40], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x50], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x60], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x70], ptr);
+        }
+        memcpy(&ctx->long_state[i], ctx->text, INIT_SIZE_BYTE);
+    }
+
+    for (i = 0; i < 2; i++)
+    {
+        ((uint64_t *)(ctx->a))[i] = ((uint64_t *)ctx->state.k)[i] ^ ((uint64_t *)ctx->state.k)[i + 4];
+        ((uint64_t *)(ctx->b))[i] = ((uint64_t *)ctx->state.k)[i + 2] ^ ((uint64_t *)ctx->state.k)[i + 6];
+    }
+
+    if (variant == 0) 
+    {
+        for (i = 0; likely(i < ITER / 8); ++i)
+        { 
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+              
+            j = ((uint32_t *)ctx->c)[0] & 0x0FFFF0; 
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x0FFFF0;
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+        }
+    }
+    else if(variant == 1)
+    {
+        for (i = 0; likely(i < ITER / 8); ++i)
+        { 
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+            VARIANT1_1(&ctx->long_state[j]);
+              
+            j = ((uint32_t *)ctx->c)[0] & 0x0FFFF0; 
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            VARIANT1_2(&ctx->long_state[j] + 8);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            VARIANT1_1(&ctx->long_state[j]);
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x0FFFF0;
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+            VARIANT1_2(&ctx->long_state[j] + 8);
+        }
+    }
+    else
+    {
+        for (i = 0; likely(i < ITER / 8); ++i)
+        {
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->c, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[j]);
+               
+            j = ((uint32_t *)ctx->c)[0] & 0x0FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD1(ctx->long_state, j);
+            VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->c);  
+            if (variant >= 2) { copy_block(ctx->d, ctx->b); } 
+            mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[j]);
+            
+            j = ((uint32_t *)(ctx->a))[0] & 0x0FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
+            SubAndShiftAndMixAddRound((uint32_t *)ctx->b, &ctx->long_state[j], (uint32_t *)ctx->a);
+            xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[j]); 
+            
+            j = ((uint32_t *)ctx->b)[0] & 0x0FFFF0;
+            VARIANT2_PORTABLE_SHUFFLE_ADD2(ctx->long_state, j);
+            VARIANT2_PORTABLE_INTEGER_MATH(&ctx->long_state[j], ctx->b);
+            if (variant >= 2) { copy_block(ctx->d, ctx->c); }    
+            mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[j]);
+        }
+    }
+
+    memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
+
+    oaes_free((OAES_CTX **)&ctx->aes_ctx);
+    ctx->aes_ctx = (oaes_ctx *)oaes_alloc();
+
+    oaes_key_import_data(ctx->aes_ctx, &ctx->state.hs.b[32], AES_KEY_SIZE);
+
+    for (i = 0; likely(i < MEMORY/2); i += INIT_SIZE_BYTE)
+    {
+
+        xor_blocks(&ctx->text[0x00], &ctx->long_state[i + 0x00]);
+        xor_blocks(&ctx->text[0x10], &ctx->long_state[i + 0x10]);
+        xor_blocks(&ctx->text[0x20], &ctx->long_state[i + 0x20]);
+        xor_blocks(&ctx->text[0x30], &ctx->long_state[i + 0x30]);
+        xor_blocks(&ctx->text[0x40], &ctx->long_state[i + 0x40]);
+        xor_blocks(&ctx->text[0x50], &ctx->long_state[i + 0x50]);
+        xor_blocks(&ctx->text[0x60], &ctx->long_state[i + 0x60]);
+        xor_blocks(&ctx->text[0x70], &ctx->long_state[i + 0x70]);
+
+        for (j = 0; j < 10; j++)
+        {
+            uint32_t *ptr = (uint32_t *)&ctx->aes_ctx->key->exp_data[j << 4];
+
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x10], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x20], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x30], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x40], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x50], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x60], ptr);
+            SubAndShiftAndMixAddRoundInPlace((uint32_t *)&ctx->text[0x70], ptr);
+        }
+    }
+
+    memcpy(ctx->state.init, ctx->text, INIT_SIZE_BYTE);
+    keccakf((uint64_t *)ctx->state.hs.b, 24);
+    extra_hashes[ctx->state.hs.b[0] & 3](&ctx->state, 200, output);
+    oaes_free((OAES_CTX **)&ctx->aes_ctx);
 }
 
 void cryptonight(void *output, const void *input, size_t len, int lite, int variant)

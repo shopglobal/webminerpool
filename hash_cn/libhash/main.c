@@ -13,7 +13,8 @@ char *hash_cn(char *hex, int lite, int variant)
 
     int len = strlen(hex) / 2;
 
-    unsigned char val[len], *pos = hex;
+    unsigned char val[len];
+    char *pos = hex;
 
     for (size_t count = 0; count < len; count++)
     {

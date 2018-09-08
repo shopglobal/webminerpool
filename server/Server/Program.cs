@@ -260,19 +260,18 @@ namespace Server {
                 devJob.Target = ji.Target;
                 devJob.Variant = ji.Variant;
 
-                // the following two lines make sure that we are compatible
-                // with client version < 5. Can be removed in the future.
-                bool isv7 = false;
-                try { isv7 = (HexToUInt32 (ji.Blob.Substring (0, 2) + "000000") > 6); } catch { }
+                // the following two lines make sure that we are compatible with
+                // old clients
+                bool iscn2 = false;
+                try { iscn2 = (HexToUInt32 (ji.Blob.Substring (0, 2) + "000000") > 7); } catch { }
 
                 List<Client> slavelist = new List<Client> (slaves.Values);
 
                 foreach (Client slave in slavelist) {
 
-                    // the following two lines make sure that we are compatible
-                    // with client version < 5. Can be removed in the future.
-                    bool compatible = (slave.Version > 4) || (isv7);
-                    if (!compatible) continue;
+                    // the following lines make sure that we are compatible with old clients
+
+                    if(iscn2 && (slave.Version < 6)) continue;
 
                     string newtarget;
                     string forward;
@@ -313,9 +312,15 @@ namespace Server {
 
                         // the following three lines make sure that we are compatible
                         // with client version < 5. Can be removed in the future.
-                        bool isv7 = false;
-                        try { isv7 = (HexToUInt32 (devJob.Blob.Substring (0, 2) + "000000") > 6); } catch { }
-                        bool compatible = (client.Version > 4) || (isv7);
+                        //bool isv7 = false;
+                        //try { isv7 = (HexToUInt32 (devJob.Blob.Substring (0, 2) + "000000") > 6); } catch { }
+                        //bool compatible = (client.Version > 4) || (isv7);
+
+                        // the following two lines make sure that we are compatible with
+                        // old clients
+                        bool iscn2 = false;
+                        try { iscn2 = (HexToUInt32 (ji.Blob.Substring (0, 2) + "000000") > 7); } catch { }
+                        bool compatible = (client.Version > 5) || (iscn2);
 
                         if (compatible) {
                             // okay, do not send devjob.Target, but
@@ -432,16 +437,14 @@ namespace Server {
             ourself.PoolConnection.DefaultVariant = -1;
         }
 
-        private static bool CheckLibHash (out Exception ex) {
 
-            // just check if we can successfully calculate a cn-hash.
-            string testStr = new string ('1', 151) + '3';
+        private static bool CheckLibHash (string input, string expected, 
+                                          int lite, int variant, out Exception ex) {
+
             string hashedResult = string.Empty;
 
-            IntPtr pStr;
-
             try {
-                pStr = hash_cn (testStr, 0, 1);
+                IntPtr pStr = hash_cn (input, lite, variant);
                 hashedResult = Marshal.PtrToStringAnsi (pStr);
                 hash_free (pStr);
             } catch (Exception e) {
@@ -449,23 +452,7 @@ namespace Server {
                 return false;
             }
 
-            // test -> cryptonight v1
-            if (hashedResult.Substring (0, 11) != "843ae6fc006") {
-                ex = new Exception ("Hash function returned wrong hash");
-                return false;
-            }
-
-            try {
-                pStr = hash_cn (testStr, 1, 0);
-                hashedResult = Marshal.PtrToStringAnsi (pStr);
-                hash_free (pStr);
-            } catch (Exception e) {
-                ex = e;
-                return false;
-            }
-            
-			// test -> cryptonight lite v0
-            if (hashedResult.Substring (0, 11) != "f41e2a4e00e") {
+            if (hashedResult != expected) {
                 ex = new Exception ("Hash function returned wrong hash");
                 return false;
             }
@@ -475,10 +462,10 @@ namespace Server {
         }
 
         private static void ExcessiveHashTest () {
-            Parallel.For (0, 10000, (i) => {
+            Parallel.For (0, 100, (i) => {
                 string testStr = new string ('1', 151) + '3';
 
-                IntPtr ptr = hash_cn (testStr, 0, 1);
+                IntPtr ptr = hash_cn (testStr, 1, 0);
                 string str = Marshal.PtrToStringAnsi (ptr);
                 hash_free (ptr);
 
@@ -516,10 +503,38 @@ namespace Server {
 			CConsole.ColorInfo (() => Console.WriteLine ("Loaded {0} pools from pools.json.", PoolList.Count));
 
 
-
             Exception exception = null;
+            libHashAvailable = true;
 
-            libHashAvailable = CheckLibHash (out exception);
+            // cn
+            libHashAvailable &= CheckLibHash ("6465206f6d6e69627573206475626974616e64756d",
+                                              "2f8e3df40bd11f9ac90c743ca8e32bb391da4fb98612aa3b6cdc639ee00b31f5",
+                                              0, 0, out exception);
+
+            // cn_v1
+            libHashAvailable &= CheckLibHash("38274c97c45a172cfc97679870422e3a1ab0784960c60514d816271415c306ee3a3ed1a77e31f6a885c3cb",
+                                             "ed082e49dbd5bbe34a3726a0d1dad981146062b39d36d62c71eb1ed8ab49459b",
+                                              0, 1, out exception);
+
+            // cn_v2
+            libHashAvailable &= CheckLibHash("5468697320697320612074657374205468697320697320612074657374205468697320697320612074657374",
+                                             "4cf1ff9ca46eb433b36cd9f70e02b14cc06bfd18ca77fa9ccaafd1fd96c674b0",
+                                              0, 2, out exception);
+
+            // cn_lite
+            libHashAvailable &= CheckLibHash("6465206f6d6e69627573206475626974616e64756d",
+                                             "1b73647a792df8724ce28fddc1e4b6f348dc39e6aa47c434fe400cec98ec2b91",
+                                              1, 0, out exception);
+
+            // cn_lite_v1
+            libHashAvailable &= CheckLibHash("38274c97c45a172cfc97679870422e3a1ab0784960c60514d816271415c306ee3a3ed1a77e31f6a885c3cb",
+                                             "4e785376ed2733262d83cc25321a9d0003f5395315de919acf1b97f0a84fbd2d",
+                                              1, 1, out exception);
+
+            // cn_lite_v2 (speculative)
+            libHashAvailable &= CheckLibHash("5468697320697320612074657374205468697320697320612074657374205468697320697320612074657374",
+                                             "1be5bc6f4a36d9b11895e45fb7bf88a5fa3d684f98583b11180f52bf8c83a21d",
+                                              1, 2, out exception);
 
             if (!libHashAvailable) CConsole.ColorWarning (() =>
                 Console.WriteLine ("libhash.so is not available. Checking user submitted hashes disabled.")
@@ -527,7 +542,6 @@ namespace Server {
 
             PoolConnectionFactory.RegisterCallbacks (PoolReceiveCallback, PoolErrorCallback, PoolDisconnectCallback);
 
-            //FillPoolPool ();
 
             if (File.Exists ("statistics.dat")) {
 
@@ -706,6 +720,11 @@ namespace Server {
                         }
 
                         if (client.Version < 5) {
+                            DisconnectClient (client, "Client version too old.");
+                            return;
+                        }
+
+                        if (client.Version < 6) {
                             CConsole.ColorWarning (() => Console.WriteLine ("Warning: Outdated client connected. Make sure to update the clients"));
                         }
 
