@@ -51,7 +51,23 @@ namespace Server {
 
 			string algo = job["algo"].GetString().ToLower();
 
-			if (lookup.ContainsKey(algo))
+            if (algo == "cn" || algo == "cryptonight")
+                job["algo"] = "cn";
+            else if (algo == "cn-lite" || algo == "cryptonight-lite")
+                job["algo"] = "cn-lite";
+            else if (lookup.ContainsKey(algo))
+            {
+                var tuple = lookup[algo];
+                job["algo"] = tuple.Item1;
+                job["variant"] = tuple.Item2;
+            }
+            else
+            {
+                return false;
+            }
+
+
+			/*if (lookup.ContainsKey(algo))
 			{
 				var tuple = lookup[algo];
 				job["algo"] = tuple.Item1;
@@ -64,7 +80,7 @@ namespace Server {
 				else if (algo == "cn-lite" || algo == "cryptonight-lite")
 					job["algo"] = "cn-lite";
 				else return false;
-			}
+			}*/
 
 			return true;
 		}

@@ -245,7 +245,7 @@ namespace Server {
                     try { iscn2 = (HexToUInt32(blob.Substring(0, 2) + "000000") > 7); } catch { }
                     if (iscn2) return false;
                 }
-                else if (variant == 2) 
+                else if (variant > 1) 
                 {
                     return false;
                 }
