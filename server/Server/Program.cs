@@ -406,7 +406,7 @@ namespace Server {
             try { client.WebSocket.Close (); } catch { }
 
             if (client.PoolConnection != null)
-                PoolConnectionFactory.Close (client.PoolConnection, client);
+                PoolConnectionFactory.Close (client);
         }
 
         public static void DisconnectClient (Client client, string reason) {

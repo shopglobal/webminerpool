@@ -114,7 +114,7 @@ namespace Server {
 			PoolConnection mypc = result.AsyncState as PoolConnection;
 			TcpClient client = mypc.TcpClient;
 
-			if (!client.Connected) return;
+			if (mypc.Closed || !client.Connected) return;
 
 			NetworkStream networkStream;
 
@@ -288,7 +288,9 @@ namespace Server {
 			}
 		}
 
-		public static void Close (PoolConnection connection, Client client) {
+		public static void Close (Client client) {
+			PoolConnection connection = client.PoolConnection;
+
 			connection.WebClients.TryRemove (client);
 
 			if (connection.WebClients.Count == 0) {
@@ -318,6 +320,9 @@ namespace Server {
 		}
 
 		public static void CheckPoolConnection (PoolConnection connection) {
+
+			if (connection.Closed) return;
+
 			if ((DateTime.Now - connection.LastInteraction).TotalMinutes < 10)
 				return;
 
