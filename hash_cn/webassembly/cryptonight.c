@@ -95,7 +95,7 @@
   { \
     const uint64_t dividend = ((uint64_t*)(ptr))[1]; \
     const uint32_t divisor = (((uint64_t*)(ptr))[0] + (sqrt_result << 1)) | 0x80000001UL; \
-    const uint64_t aa = (uint64_t)((double) dividend / (double)divisor); \
+    const uint64_t aa = dividend / divisor; \
     division_result = (aa & 0xFFFFFFFF) + ((dividend - aa * divisor) << 32); \
   } \
   const uint64_t sqrt_input = ((uint64_t*)(ptr))[0] + division_result
